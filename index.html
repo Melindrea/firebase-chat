@@ -1,12 +1,12 @@
 <html>
 <head>
-  <script src="https://cdn.firebase.com/js/client/2.2.1/firebase.js"></script>
-  <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js'></script>
-  <script src="https://www.firebase.com/resources/tutorial/js/libs/idle.js"></script>
-  <link rel="stylesheet" type="text/css" href="https://www.firebase.com/resources/tutorial/css/example.css">
+  <script src="/bower_components/firebase/firebase.js"></script>
+  <script src='/bower_components/jquery/dist/jquery.js'></script>
+  <script src="/bower_components/jquery-idletimer/dist/idle-timer.js"></script>
 </head>
 <body>
 <div id="presenceDiv" class="l-demo-container example-base">
+  <ul></ul>
 </div>
 
 <!-- CHAT MARKUP -->
@@ -15,7 +15,7 @@
 
   <div class='example-chat-toolbar'>
     <label for="nameInput">Username:</label>
-    <input type='text' id='nameInput' placeholder='enter a username...' disabled>
+    <span id='nameSpan'></span>
   </div>
 
   <ul id='example-messages' class="example-chat-messages"></ul>
@@ -29,7 +29,7 @@
 <script>
   // Prompt the user for a name to use.
   var name = prompt("Your name?", "Guest");
-  $("#nameInput").val(name);
+  $("#nameSpan").text(name);
   var currentStatus = "★ online";
 
   // Get a reference to the presence data in Firebase.
@@ -72,52 +72,51 @@
   userListRef.on("child_added", function(snapshot) {
     var user = snapshot.val();
 
-    $("<div/>")
+    $("<li/>")
       .attr("id", getMessageId(snapshot))
       .text(user.name + " is currently " + user.status)
-      .appendTo("#presenceDiv");
+      .appendTo("#presenceDiv ul");
   });
 
   // Update our GUI to remove the status of a user who has left.
   userListRef.on("child_removed", function(snapshot) {
-    $("#presenceDiv").children("#" + getMessageId(snapshot))
+    $("#presenceDiv ul").children("#" + getMessageId(snapshot))
       .remove();
   });
 
   // Update our GUI to change a user"s status.
   userListRef.on("child_changed", function(snapshot) {
     var user = snapshot.val();
-    $("#presenceDiv").children("#" + getMessageId(snapshot))
+    $("#presenceDiv ul").children("#" + getMessageId(snapshot))
       .text(user.name + " is currently " + user.status);
   });
 
-  // Use idle/away/back events created by idle.js to update our status information.
-  document.onIdle = function () {
-    setUserStatus("☆ idle");
-  }
-  document.onAway = function () {
-    setUserStatus("☄ away");
-  }
-  document.onBack = function (isIdle, isAway) {
-    setUserStatus("★ online");
-  }
+    $(function () {
+        $.idleTimer({
+            timeout:10000
+        });
 
-  setIdleTimeout(5000);
-  setAwayTimeout(10000);
+        $('document').on('idle.idleTimer', function () {
+            setUserStatus("☆ idle");
+        });
+        $('document').on('active.idleTimer', function () {
+            setUserStatus("★ online");
+        });
+    });
 
   // CREATE A REFERENCE TO FIREBASE
   var messagesRef = new Firebase('https://brilliant-torch-1499.firebaseio.com/chats');
 
   // REGISTER DOM ELEMENTS
   var messageField = $('#messageInput');
-  var nameField = $('#nameInput');
+  var nameField = $('#nameSpan');
   var messageList = $('#example-messages');
 
   // LISTEN FOR KEYPRESS EVENT
   messageField.keypress(function (e) {
     if (e.keyCode == 13) {
       //FIELD VALUES
-      var username = nameField.val();
+      var username = nameField.text();
       var message = messageField.val();
 
       //SAVE DATA TO FIREBASE AND EMPTY FIELD
@@ -130,7 +129,7 @@
   messagesRef.limitToLast(10).on('child_added', function (snapshot) {
     //GET DATA
     var data = snapshot.val();
-    var username = data.name || "anonymous";
+    var username = data.name;
     var message = data.text;
 
     //CREATE ELEMENTS MESSAGE & SANITIZE TEXT
